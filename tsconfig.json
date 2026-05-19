@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",                          /* ເວີຊັນ JavaScript ທີ່ຢາກໃຫ້ແປງອອກໄປ */
+    "module": "NodeNext",                        /* ຮອງຮັບລະບົບ Module ແບບໃໝ່ຂອງ Node.js */
+    "moduleResolution": "NodeNext",
+    "rootDir": "./src",                          /* ບອກວ່າໂຄ້ດ TypeScript ຂອງເຮົາທັງໝົດຈະຖືກເກັບໄວ້ໃນໂຟນເດີ src */
+    "outDir": "./dist",                          /* ບອກວ່າເວລາແປງເປັນ JavaScript ແລ້ວ ໃຫ້ເອົາໄຟລ໌ໄປໄວ້ໃນໂຟນເດີ dist */
+    "esModuleInterop": true,                      /* ຊ່ວຍໃຫ້ດຶງເອົາ Library ທີ່ເປັນ CommonJS ມາໃຊ້ໄດ້ງ່າຍ */
+    "forceConsistentCasingInFileNames": true,            /* ກວດສອບເລື່ອງຕົວອັກສອນພິມໃຫຍ່-ພິມນ້ອຍໃນຊື່ໄຟລ໌ */
+    "strict": true,                              /* ເປີດໂໝດກວດສອບໂຄ້ດແບບເຂັ້ມງວດ ເພື່ອຫຼຸດຂໍ້ຜິດພາດ */
+    "skipLibCheck": true                         /* ຂ້າມການກວດສອບໄຟລ໌ຕັ້ງຄ່າຂອງ Library ອື່ນໆ ເພື່ອໃຫ້ Compile ໄວຂຶ້ນ */
+  },
+  "include": ["src/**/*"]                        /* ບອກໃຫ້ TypeScript ແປງສະເພາະໄຟລ໌ທີ່ຢູ່ໃນໂຟນເດີ src ເທົ່ານັ້ນ */
+}
