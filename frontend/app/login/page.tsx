@@ -1,73 +1,103 @@
 'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../lib/api'; // ໄຟລ໌ເຊື່ອມຕໍ່ API ທີ່ເຮົາສ້າງໄວ້ໃນ lib/
+import Link from 'next/link';
+import api from '../../lib/api';
+import { useLang } from '../../components/LanguageContext';
+import axios from 'axios';
 
 export default function LoginPage() {
+  const { t, setLang, lang } = useLang();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
-
+    setError('');
     try {
       const res = await api.post('/auth/login', { email, password });
-      
-      // ເກັບ Token ໄວ້ໃນ localStorage
       localStorage.setItem('token', res.data.token);
-      
-      // ໄປໜ້າ Dashboard
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Login ບໍ່ສຳເລັດ, ກະລຸນາກວດສອບຂໍ້ມູນ');
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.message || 'Login failed');
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <form onSubmit={handleLogin} className="p-8 bg-white shadow-lg rounded-lg w-96">
-        <h1 className="mb-6 text-2xl font-bold text-center text-gray-800">Login</h1>
-        
-        {error && <p className="mb-4 text-red-500 text-sm text-center">{error}</p>}
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Email</label>
-          <input 
-            type="email" required
-            className="w-full p-2 mt-1 border rounded focus:ring-blue-500 focus:border-blue-500"
-            onChange={(e) => setEmail(e.target.value)} 
-          />
-        </div>
-        
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700">Password</label>
-          <input 
-            type="password" required
-            className="w-full p-2 mt-1 border rounded focus:ring-blue-500 focus:border-blue-500"
-            onChange={(e) => setPassword(e.target.value)} 
-          />
-        </div>
-        
-        <button 
-          type="submit" 
-          disabled={isLoading}
-          className={`w-full p-2 text-white rounded ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
-        >
-          {isLoading ? 'ກຳລັງເຂົ້າສູ່ລະບົບ...' : 'Login'}
-        </button>
+    <div className="min-h-screen flex items-center justify-center relative bg-cover bg-center" style={{ backgroundImage: "url('/background.jpg')" }}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+      
+      <div className="absolute top-8 right-8 z-10 flex gap-2">
+        <button onClick={() => setLang('en')} className={`px-3 py-1 rounded-md transition ${lang === 'en' ? 'bg-blue-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>EN</button>
+        <button onClick={() => setLang('lo')} className={`px-3 py-1 rounded-md transition ${lang === 'lo' ? 'bg-blue-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>ລາວ</button>
+      </div>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
-          ຍັງບໍ່ມີບັນຊີ? <a href="/register" className="text-blue-600 hover:underline">ລົງທະບຽນ</a>
-        </p>
-      </form>
+      <div className="relative z-10 w-full max-w-md p-8 mx-4">
+        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 shadow-2xl">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">{t.login}</h1>
+            <p className="text-gray-300">Welcome back! Please enter your details.</p>
+          </div>
+
+          {error && <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center">{error}</div>}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">{t.email}</label>
+              <input 
+                type="email" 
+                placeholder="your@email.com" 
+                required
+                className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" 
+                onChange={(e) => setEmail(e.target.value)} 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">{t.password}</label>
+              <input 
+                type="password" 
+                placeholder="••••••••" 
+                required
+                className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition" 
+                onChange={(e) => setPassword(e.target.value)} 
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-blue-600/30"
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : t.btn}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-gray-400">
+              {t.register} 
+              <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium ml-1 transition">{t.regLink}</Link>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
