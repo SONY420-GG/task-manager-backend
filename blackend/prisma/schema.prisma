@@ -13,15 +13,20 @@ model User {
   password  String
   createdAt DateTime @default(now())
   
-  // ເພີ່ມແຖວນີ້ເພື່ອເຊື່ອມຕໍ່ກັບ Task
+  // OTP Fields
+  otpCode      String?
+  otpExpiresAt DateTime?
+  isVerified   Boolean   @default(false)
+  
   tasks     Task[]   
 }
 
 model Task {
-  id        Int      @id @default(autoincrement())
-  title     String
-  status    String   @default("pending")
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  status      String   @default("pending")
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
 }

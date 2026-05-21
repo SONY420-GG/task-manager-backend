@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // 1. Import LanguageProvider ທີ່ເຮົາສ້າງໄວ້
 import { LanguageProvider } from "../components/LanguageContext"; 
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,10 +31,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {/* 2. ຫໍ່ children ດ້ວຍ LanguageProvider */}
-        <LanguageProvider>
-          {children}
-        </LanguageProvider>
+        {/* 2. ຫໍ່ children ດ້ວຍ GoogleOAuthProvider ແລະ LanguageProvider */}
+        <GoogleOAuthProvider clientId="1012813115843-2nfhg0fnt0al54u9jjt77r2ms7b824ce.apps.googleusercontent.com">
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
+        </GoogleOAuthProvider>
       </body>
     </html>
   );
