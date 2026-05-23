@@ -13,6 +13,14 @@ import { authenticateToken } from './middleware/auth.js';
 
 dotenv.config();
 
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'GOOGLE_CLIENT_ID'];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Error: Environment variable ${envVar} is missing.`);
+    process.exit(1);
+  }
+}
+
 console.log("DEBUG: GOOGLE_CLIENT_ID loaded:", process.env.GOOGLE_CLIENT_ID ? "YES" : "NO");
 if (process.env.GOOGLE_CLIENT_ID) {
   console.log("DEBUG: First 10 chars of Client ID:", process.env.GOOGLE_CLIENT_ID.substring(0, 10));
@@ -29,7 +37,7 @@ const PORT = process.env.PORT || 5001;
 
 // --- MIDDLEWARE ---
 app.use(cors({
-  origin: '*', // ອະນຸຍາດທຸກ Origin ເພື່ອທົດສອບ
+  origin: true, // ອະນຸຍາດ Origin ທີ່ຮ້ອງຂໍມາ (ຈຳເປັນເມື່ອໃຊ້ credentials: true)
   credentials: true
 }));
 app.use(express.json());
@@ -158,17 +166,53 @@ app.post('/api/auth/google-login', async (req: Request, res: Response) => {
   }
 });
 
+// --- FORGOT PASSWORD API ---
+app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    
+    // For security, always return success even if user not found
+    if (!user) {
+      return res.json({ message: "If an account exists, a reset link has been sent." });
+    }
+
+    // In a real app, you would generate a token and send an email
+    // For now, we'll just log it and return success
+    console.log(`Password reset requested for: ${email}`);
+    
+    // If you have Resend configured:
+    // await resend.emails.send({
+    //   from: 'onboarding@resend.dev',
+    //   to: email,
+    //   subject: 'Password Reset',
+    //   html: '<p>Click here to reset your password (link placeholder)</p>'
+    // });
+
+    res.json({ message: "If an account exists, a reset link has been sent." });
+  } catch (error: any) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Failed to process request" });
+  }
+});
+
 // --- TASK API (CRUD) ---
 app.post('/api/tasks', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, status } = req.body;
     const userId = req.user?.userId;
     const newTask = await prisma.task.create({
-      data: { title, description, userId: userId! }
+      data: { 
+        title, 
+        description, 
+        status: status || 'DRAFT',
+        userId: userId! 
+      }
     });
     res.status(201).json(newTask);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to create task" });
+  } catch (error: any) {
+    console.error("Create task error:", error);
+    res.status(500).json({ message: "Failed to create task", error: error.message });
   }
 });
 
@@ -182,6 +226,35 @@ app.get('/api/tasks', authenticateToken, async (req: AuthRequest, res: Response)
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch tasks" });
+  }
+});
+
+// Update Task
+app.patch('/api/tasks/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, description, status } = req.body;
+    const userId = req.user?.userId;
+
+    const task = await prisma.task.findFirst({
+      where: { id: Number(id), userId }
+    });
+
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    const updatedTask = await prisma.task.update({
+      where: { id: Number(id) },
+      data: { 
+        title: title ?? task.title,
+        description: description ?? task.description,
+        status: status ?? task.status
+      }
+    });
+
+    res.json(updatedTask);
+  } catch (error: any) {
+    console.error("Update task error:", error);
+    res.status(500).json({ message: "Failed to update task", error: error.message });
   }
 });
 
@@ -199,6 +272,47 @@ app.delete('/api/tasks/:id', authenticateToken, async (req: AuthRequest, res: Re
   } catch (error) {
     res.status(500).json({ message: "Failed to delete task" });
   }
+});
+
+// --- USER PROFILE API ---
+app.get('/api/auth/profile', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, createdAt: true }
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch profile" });
+  }
+});
+
+app.patch('/api/auth/profile', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { name } = req.body;
+    
+    if (!name) return res.status(400).json({ message: "Name is required" });
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { name },
+      select: { id: true, email: true, name: true, createdAt: true }
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("Profile update error:", error);
+    res.status(500).json({ message: "Failed to update profile" });
+  }
+});
+
+// --- ERROR HANDLING MIDDLEWARE ---
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Something went wrong!", error: err.message });
 });
 
 app.listen(PORT, () => {

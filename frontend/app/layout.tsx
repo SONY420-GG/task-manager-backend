@@ -32,7 +32,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {/* 2. ຫໍ່ children ດ້ວຍ GoogleOAuthProvider ແລະ LanguageProvider */}
-        <GoogleOAuthProvider clientId="1012813115843-2nfhg0fnt0al54u9jjt77r2ms7b824ce.apps.googleusercontent.com">
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
           <LanguageProvider>
             {children}
           </LanguageProvider>

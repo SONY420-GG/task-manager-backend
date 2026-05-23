@@ -34,7 +34,7 @@ export default function RegisterPage() {
       router.push('/login'); // ລົງທະບຽນແລ້ວໄປໜ້າລັອກອິນເລີຍ
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Registration failed');
+        setError(err.response?.data?.message || 'Registration failed: ' + (err.response ? 'Invalid data' : 'Cannot connect to server'));
       } else {
         setError('An unexpected error occurred');
       }

@@ -19,9 +19,25 @@ type TranslationKeys = {
   description: string;
   save: string;
   cancel: string;
-};
+  all: string;
+  pending: string;
+  completed: string;
+  profile: string;
+  edit: string;
+  forgotPassword: string;
+  search: string;
+  totalTasks: string;
+  stats: string;
+  noResults: string;
+  analytics: string;
+  saveChanges: string;
+  profileUpdated: string;
+  taskStatus: string;
+  backToDashboard: string;
+  memberSince: string;
+  };
 
-const translations: Record<string, TranslationKeys> = {
+  const translations: Record<string, TranslationKeys> = {
   en: { 
     login: "Login", 
     email: "Email", 
@@ -39,7 +55,25 @@ const translations: Record<string, TranslationKeys> = {
     title: "Title",
     description: "Description",
     save: "Save",
-    cancel: "Cancel"
+    cancel: "Cancel",
+    all: "All",
+    pending: "Pending",
+    completed: "Completed",
+    status: "Status",
+    profile: "Profile",
+    delete: "Delete",
+    edit: "Edit",
+    forgotPassword: "Forgot password?",
+    search: "Search tasks...",
+    totalTasks: "Total Tasks",
+    stats: "Quick Stats",
+    noResults: "No tasks match your search.",
+    analytics: "Analytics",
+    saveChanges: "Save Changes",
+    profileUpdated: "Profile updated successfully!",
+    taskStatus: "Task Status Distribution",
+    backToDashboard: "Back to Dashboard",
+    memberSince: "Member Since"
   },
   lo: { 
     login: "ເຂົ້າສູ່ລະບົບ", 
@@ -58,9 +92,27 @@ const translations: Record<string, TranslationKeys> = {
     title: "ຫົວຂໍ້",
     description: "ລາຍລະອຽດ",
     save: "ບັນທຶກ",
-    cancel: "ຍົກເລີກ"
+    cancel: "ຍົກເລີກ",
+    all: "ທັງໝົດ",
+    pending: "ກຳລັງດຳເນີນການ",
+    completed: "ສຳເລັດແລ້ວ",
+    status: "ສະຖານະ",
+    profile: "ໂປຣໄຟລ໌",
+    delete: "ລຶບ",
+    edit: "ແກ້ໄຂ",
+    forgotPassword: "ລືມລະຫັດຜ່ານ?",
+    search: "ຄົ້ນຫາວຽກ...",
+    totalTasks: "ວຽກທັງໝົດ",
+    stats: "ສະຖິຕິໂດຍຫຍໍ້",
+    noResults: "ບໍ່ພົບວຽກທີ່ກົງກັບການຄົ້ນຫາ.",
+    analytics: "ການວິເຄາະ",
+    saveChanges: "ບັນທຶກການປ່ຽນແປງ",
+    profileUpdated: "ອັບເດດໂປຣໄຟລ໌ສຳເລັດແລ້ວ!",
+    taskStatus: "ການກະຈາຍສະຖານະວຽກ",
+    backToDashboard: "ກັບໄປທີ່ແຜງຄວບຄຸມ",
+    memberSince: "ເປັນສະມາຊິກຕັ້ງແຕ່"
   }
-};
+  };
 
 interface LanguageContextType {
   lang: string;

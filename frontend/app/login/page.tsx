@@ -25,7 +25,7 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Login failed');
+        setError(err.response?.data?.message || 'Login failed: ' + (err.response ? 'Invalid credentials' : 'Cannot connect to server'));
       } else {
         setError('An unexpected error occurred');
       }
@@ -80,7 +80,12 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">{t.password}</label>
+              <div className="flex justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-300">{t.password}</label>
+                <Link href="/forgot-password" title="Coming soon" className="text-xs text-blue-400 hover:text-blue-300 transition">
+                  {t.forgotPassword}
+                </Link>
+              </div>
               <input 
                 type="password" 
                 placeholder="••••••••" 
@@ -112,12 +117,18 @@ export default function LoginPage() {
             </div>
 
             <div className="flex justify-center">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => setError('Google Login failed')}
-                theme="filled_black"
-                shape="pill"
-              />
+              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? (
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError('Google Login failed')}
+                  theme="filled_black"
+                  shape="pill"
+                />
+              ) : (
+                <div className="text-red-400 text-xs bg-red-500/10 p-2 rounded-lg border border-red-500/20">
+                  Google Client ID not configured. Please check .env.local
+                </div>
+              )}
             </div>
           </form>
 

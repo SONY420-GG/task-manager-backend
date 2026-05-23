@@ -1,32 +1,52 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import api from '../../lib/api';
 import { useLang } from '../../components/LanguageContext';
 import axios from 'axios';
+import { 
+  FaTasks, FaClock, FaPlus, 
+  FaSignOutAlt, FaTrash, FaEdit, FaUserCircle,
+  FaSearch, FaChartBar, FaCheckCircle, FaSpinner, FaFlask, FaInbox
+} from 'react-icons/fa';
+import TaskModal from '../../components/TaskModal';
 
 interface Task {
   id: number;
   title: string;
   description: string;
+  status: string;
+  createdAt: string;
+}
+
+interface UserProfile {
+  id: number;
+  email: string;
+  name: string;
 }
 
 export default function DashboardPage() {
-  const { t, setLang } = useLang();
+  const { t, setLang, lang } = useLang();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const router = useRouter();
 
-  const fetchTasks = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await api.get<Task[]>('/tasks');
-      setTasks(res.data);
+      const [tasksRes, profileRes] = await Promise.all([
+        api.get<Task[]>('/tasks'),
+        api.get<UserProfile>('/auth/profile')
+      ]);
+      setTasks(tasksRes.data);
+      setUser(profileRes.data);
     } catch (err) {
-      console.error('Failed to fetch tasks', err);
+      console.error('Failed to fetch data', err);
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         localStorage.removeItem('token');
         router.push('/login');
@@ -37,40 +57,43 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => {
-    const checkAuthAndFetch = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-      await fetchTasks();
-    };
-    
-    checkAuthAndFetch();
-  }, [router, fetchTasks]);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    fetchData();
+  }, [fetchData, router]);
 
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsAdding(true);
+  const handleTaskSubmit = async (taskData: Partial<Task>) => {
     try {
-      await api.post('/tasks', { title: newTitle, description: newDesc });
-      setNewTitle('');
-      setNewDesc('');
-      setShowAddForm(false);
-      fetchTasks();
+      if (editingTask) {
+        await api.patch(`/tasks/${editingTask.id}`, taskData);
+      } else {
+        await api.post('/tasks', taskData);
+      }
+      fetchData();
     } catch (err) {
       console.error(err);
-      alert('Failed to add task');
-    } finally {
-      setIsAdding(false);
+      alert('Failed to save task');
+    }
+  };
+
+  const handleStatusChange = async (taskId: number, newStatus: string) => {
+    try {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+      await api.patch(`/tasks/${taskId}`, { status: newStatus });
+    } catch (err) {
+      console.error(err);
+      fetchData();
     }
   };
 
   const handleDeleteTask = async (id: number) => {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm(lang === 'lo' ? 'ທ່ານແນ່ໃຈບໍ່ທີ່ຈະລຶບ?' : 'Are you sure you want to delete this task?')) return;
     try {
       await api.delete(`/tasks/${id}`);
-      fetchTasks();
+      setTasks(prev => prev.filter(t => t.id !== id));
     } catch (err) {
       console.error(err);
       alert('Failed to delete task');
@@ -82,90 +105,228 @@ export default function DashboardPage() {
     router.push('/login');
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">Loading...</div>;
+  const columns = ['DRAFT', 'IN_PROGRESS', 'TESTING', 'DONE'];
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => 
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [tasks, searchTerm]);
+
+  const stats = useMemo(() => {
+    return {
+      total: tasks.length,
+      draft: tasks.filter(t => t.status === 'DRAFT').length,
+      progress: tasks.filter(t => t.status === 'IN_PROGRESS').length,
+      testing: tasks.filter(t => t.status === 'TESTING').length,
+      done: tasks.filter(t => t.status === 'DONE').length,
+    };
+  }, [tasks]);
+
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f172a] text-white">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+      <p className="text-gray-400 animate-pulse font-medium tracking-wide text-sm uppercase">Loading Workspace...</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-3xl font-extrabold tracking-tight">{t.dashboard}</h1>
-          <div className="flex gap-4 items-center">
-            <div className="flex bg-white dark:bg-zinc-800 p-1 rounded-lg border dark:border-zinc-700 shadow-sm">
-              <button onClick={() => setLang('en')} className={`px-3 py-1 text-sm font-medium rounded-md transition ${t.lang === 'en' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>EN</button>
-              <button onClick={() => setLang('lo')} className={`px-3 py-1 text-sm font-medium rounded-md transition ${t.lang === 'lo' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>ລາວ</button>
+    <div className="flex h-screen bg-[#0f172a] text-gray-100 font-sans overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-72 bg-[#1e293b] border-r border-gray-800/50 hidden lg:flex flex-col shadow-2xl z-20">
+        <div className="p-8">
+          <div className="flex items-center gap-4 mb-10 px-2">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-2.5 rounded-2xl shadow-lg shadow-blue-500/20">
+              <FaTasks className="text-2xl text-white" />
             </div>
-            <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition shadow-md shadow-red-500/20">{t.logout}</button>
+            <h2 className="text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">TaskFlow</h2>
           </div>
+
+          <nav className="space-y-1.5">
+            <Link href="/dashboard" className="flex items-center gap-3.5 bg-blue-600/10 text-blue-400 p-4 rounded-2xl cursor-pointer transition-all border border-blue-500/10 font-bold text-sm">
+              <FaInbox /> {t.dashboard}
+            </Link>
+            <Link href="/profile" className="flex items-center gap-3.5 text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 p-4 rounded-2xl cursor-pointer transition-all font-semibold text-sm">
+              <FaUserCircle /> {t.profile}
+            </Link>
+            <Link href="/analytics" className="flex items-center gap-3.5 text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 p-4 rounded-2xl cursor-pointer transition-all font-semibold text-sm">
+              <FaChartBar /> {t.analytics}
+            </Link>
+          </nav>
         </div>
 
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold">{t.tasks}</h2>
+        <div className="mt-auto p-8 border-t border-gray-800/50 bg-[#1e293b]/50">
+          <div className="flex items-center gap-4 mb-8 px-2">
+            <div className="bg-gradient-to-tr from-blue-500 to-purple-500 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-xl shadow-blue-500/10 text-lg">
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="overflow-hidden">
+              <p className="font-black truncate text-sm text-gray-100 uppercase tracking-tight">{user?.name}</p>
+              <p className="text-[10px] text-gray-500 truncate font-bold uppercase tracking-widest">{user?.email}</p>
+            </div>
+          </div>
+          
+          <div className="flex bg-[#0f172a] p-1.5 rounded-2xl mb-6 border border-gray-800/50">
+            <button onClick={() => setLang('en')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all duration-300 ${lang === 'en' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}>EN</button>
+            <button onClick={() => setLang('lo')} className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all duration-300 ${lang === 'lo' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}>ລາວ</button>
+          </div>
+
           <button 
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-lg shadow-blue-600/20"
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-3 bg-red-500/5 hover:bg-red-500/10 text-red-500 p-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest border border-red-500/10"
           >
-            {showAddForm ? t.cancel : t.addTask}
+            <FaSignOutAlt /> {t.logout}
           </button>
         </div>
+      </aside>
 
-        {showAddForm && (
-          <form onSubmit={handleAddTask} className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 rounded-2xl p-6 mb-8 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="grid gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">{t.title}</label>
-                <input 
-                  type="text" 
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  required
-                  className="w-full p-2 bg-gray-50 dark:bg-zinc-800 border dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                  placeholder={t.title}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">{t.description}</label>
-                <textarea 
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-zinc-800 border dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24" 
-                  placeholder={t.description}
-                />
-              </div>
-              <button 
-                type="submit" 
-                disabled={isAdding}
-                className="bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold transition disabled:opacity-50"
-              >
-                {isAdding ? '...' : t.save}
-              </button>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 bg-[#0f172a] relative">
+        <header className="h-24 flex items-center justify-between px-8 md:px-12 border-b border-gray-800/40 sticky top-0 bg-[#0f172a]/90 backdrop-blur-xl z-10">
+          <div className="flex items-center gap-8 flex-1">
+            <div className="hidden md:block">
+              <h1 className="text-2xl font-black tracking-tight">{t.dashboard}</h1>
+              <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em]">Manage your flow</p>
             </div>
-          </form>
-        )}
+            
+            <div className="relative flex-1 max-w-md ml-4">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
+              <input 
+                type="text" 
+                placeholder={t.search}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#1e293b]/50 border border-gray-800/50 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-gray-600 font-medium"
+              />
+            </div>
+          </div>
 
-        <div className="space-y-4">
-          {tasks.length === 0 ? (
-            <div className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 rounded-2xl p-12 text-center">
-              <p className="text-gray-500 dark:text-gray-400 text-lg">{t.noTasks}</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {tasks.map((task) => (
-                <div key={task.id} className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition group">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-bold group-hover:text-blue-600 transition">{task.title}</h3>
-                    <button onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-500 transition">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    </button>
+          <div className="flex items-center gap-6 ml-6">
+            <button 
+              onClick={() => { setEditingTask(null); setIsModalOpen(true); }}
+              className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3.5 rounded-2xl flex items-center gap-3 transition-all shadow-xl shadow-blue-500/20 font-black text-xs uppercase tracking-widest active:scale-95 border border-white/10"
+            >
+              <FaPlus /> <span>{t.addTask}</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Dashboard Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-12">
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+            {[
+              { label: t.totalTasks, value: stats.total, icon: <FaTasks className="text-blue-400"/>, color: 'blue' },
+              { label: 'Draft', value: stats.draft, icon: <FaInbox className="text-gray-400"/>, color: 'gray' },
+              { label: 'Progress', value: stats.progress, icon: <FaSpinner className="text-blue-300 animate-spin-slow"/>, color: 'blue' },
+              { label: 'Testing', value: stats.testing, icon: <FaFlask className="text-purple-400"/>, color: 'purple' },
+              { label: 'Done', value: stats.done, icon: <FaCheckCircle className="text-green-400"/>, color: 'green' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-[#1e293b]/40 border border-gray-800/40 p-6 rounded-3xl hover:border-gray-700/60 transition-all group">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`p-2.5 bg-[#0f172a] rounded-xl border border-gray-800/50 group-hover:scale-110 transition-transform`}>
+                    {stat.icon}
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{task.description}</p>
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                <h3 className="text-3xl font-black text-white tracking-tighter">{stat.value}</h3>
+              </div>
+            ))}
+          </div>
+
+          {/* Kanban Board */}
+          <div className="flex gap-8 overflow-x-auto pb-8 custom-scrollbar min-h-[600px]">
+            {columns.map((col) => {
+              const colTasks = filteredTasks.filter(t => t.status === col);
+              return (
+                <div key={col} className="w-80 flex-shrink-0 flex flex-col">
+                  <div className="flex items-center justify-between mb-8 px-2">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-3 h-3 rounded-full shadow-lg ${
+                        col === 'DONE' ? 'bg-green-500 shadow-green-500/20' : 
+                        col === 'TESTING' ? 'bg-purple-500 shadow-purple-500/20' : 
+                        col === 'IN_PROGRESS' ? 'bg-blue-500 shadow-blue-500/20' : 'bg-gray-500 shadow-gray-500/20'
+                      }`}></span>
+                      <h2 className="font-black text-xs uppercase tracking-[0.2em] text-gray-400">{col.replace('_', ' ')}</h2>
+                    </div>
+                    <span className="bg-[#1e293b] text-gray-400 text-[10px] font-black px-3 py-1.5 rounded-full border border-gray-800/50">{colTasks.length}</span>
+                  </div>
+
+                  <div className="space-y-5 flex-1 pr-1">
+                    {colTasks.length === 0 && (
+                      <div className="border-2 border-dashed border-gray-800/30 rounded-3xl p-10 text-center bg-[#1e293b]/10">
+                        <p className="text-[10px] text-gray-700 uppercase font-black tracking-widest">No Items</p>
+                      </div>
+                    )}
+                    {colTasks.map(task => (
+                      <div 
+                        key={task.id} 
+                        className="bg-[#1e293b] p-6 rounded-3xl border border-gray-800 shadow-lg hover:border-blue-500/30 transition-all duration-500 group relative overflow-hidden cursor-default"
+                      >
+                        <div className="absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500"></div>
+                        <div className="flex justify-between items-start mb-4 gap-3">
+                          <h3 className="font-bold text-gray-100 group-hover:text-blue-400 transition-colors line-clamp-2 text-[15px] leading-tight tracking-tight">{task.title}</h3>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                            <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all"><FaEdit size={14}/></button>
+                            <button onClick={() => handleDeleteTask(task.id)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"><FaTrash size={14}/></button>
+                          </div>
+                        </div>
+                        {task.description && (
+                          <p className="text-[13px] text-gray-500 line-clamp-3 mb-6 leading-relaxed font-medium">{task.description}</p>
+                        )}
+                        <div className="flex items-center justify-between mt-auto pt-5 border-t border-gray-800/40">
+                          <span className="text-[10px] font-black text-gray-600 uppercase flex items-center gap-2 tracking-widest">
+                            <FaClock size={10} className="text-gray-700"/> {new Date(task.createdAt).toLocaleDateString()}
+                          </span>
+                          <select 
+                            value={task.status} 
+                            onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                            className="bg-[#0f172a] text-[10px] font-black text-blue-500 uppercase outline-none cursor-pointer hover:bg-blue-500/10 rounded-xl px-3 py-1.5 transition-all border border-gray-800 hover:border-blue-500/20"
+                          >
+                            {columns.map(c => <option key={c} value={c} className="bg-[#1e293b] text-white">{c.replace('_', ' ')}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </main>
+
+      <TaskModal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setEditingTask(null); }} 
+        onSubmit={handleTaskSubmit}
+        initialData={editingTask}
+      />
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #334155;
+          border-radius: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #475569;
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }

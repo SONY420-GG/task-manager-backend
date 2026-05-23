@@ -21,11 +21,18 @@ model User {
   tasks     Task[]   
 }
 
+enum Status {
+  DRAFT
+  IN_PROGRESS
+  TESTING
+  DONE
+}
+
 model Task {
   id          Int      @id @default(autoincrement())
   title       String
   description String?
-  status      String   @default("pending")
+  status      Status   @default(DRAFT)
   userId      Int
   user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
